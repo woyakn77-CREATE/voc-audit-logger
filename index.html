@@ -33,6 +33,9 @@ h2{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.0
 .demo b{display:block;margin-bottom:2px}
 .demo.on{background:var(--no-bg);border-left-color:var(--no)}
 .src{font-size:12px;color:var(--muted);font-style:italic}
+#howNote{gap:10px;font-size:14px}
+#howNote summary{cursor:pointer;font-size:15px;color:var(--ink)}
+#howNote[open] summary{margin-bottom:4px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
 label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);min-width:0}
 input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:10px;width:100%;min-width:0;text-transform:none;letter-spacing:0;font-weight:400}
@@ -88,6 +91,19 @@ details summary{cursor:pointer;font-weight:600;padding:6px 0;color:var(--muted)}
     <b>How this demo works.</b> As built, this tool uses Claude to read a label photo or a typed product name, so the AI check needs you to be signed in to Claude.
     <span id="modeLine">This public demo runs without Claude, so pick one of the sample label photos or a chemical from the list below for an instant built-in result. Anything you log resets when you reload.</span>
   </div>
+
+  <details class="card" id="howNote">
+    <summary><b>Demo limits and the real workflow</b></summary>
+    <p style="margin:0"><b>What this web demo can't do:</b> a web page isn't allowed to visit a manufacturer's website or download files from it. Browsers block that for security, and this public demo has no AI connection. So the demo can't look up, download or read a real Safety Data Sheet (SDS).</p>
+    <p style="margin:0"><b>How the workflow runs in practice:</b></p>
+    <ol style="margin:0;padding-left:1.3em">
+      <li><b>On the floor (phone):</b> photograph each label and log the area, quantity, container size and storage condition.</li>
+      <li><b>Export:</b> copy the log as a CSV.</li>
+      <li><b>At a PC with web-connected AI:</b> an AI assistant (for example Claude or Copilot with web search) finds each manufacturer's SDS, reads Section 9 or 15 for the VOC content and Section 3 for the ingredients, and fills in the manufacturer, part number, VOC content, units and SDS-on-file columns.</li>
+      <li><b>Review:</b> a person checks anything the AI flagged, then submits the audit.</li>
+    </ol>
+    <p style="margin:0">Chemicals marked <b>(With SDS)</b> in the list show what a finished entry looks like after step 3. Their SDS details are sample data for demonstration, not from a real manufacturer's sheet.</p>
+  </details>
 
   <section class="card" aria-labelledby="checkH">
     <h2 id="checkH">1. Check a product</h2>
@@ -224,10 +240,19 @@ const CHEM=[
  ["Mold release, solvent-based aerosol","SMC & BMC","Yes",null,"","Solvent carriers and propellants are VOCs.",SDS],
  ["Mold release, water-based","SMC & BMC","Unclear",null,"","Mostly water, but may contain small amounts of glycols.",SDS],
 ].map(([n,cat,voc,v,u,reason,tip])=>({n,cat,voc,v,u,reason,tip}));
+/* Sample SDS data (illustrative): what step 3 of the workflow adds. Not from a real manufacturer's sheet. */
+const SDSDATA={
+ "Isopropyl alcohol 99%":{mfr:"Sample Chemical Co.",part:"IPA-99-1G",voc:786,u:"g/L",rev:"2025-03-14",sec:"Section 9"},
+ "Acetone":{mfr:"Sample Chemical Co.",part:"ACE-100-1G",voc:0,u:"g/L",rev:"2024-11-02",sec:"Section 15 (VOC less exempt solvents)"},
+ "Mineral spirits":{mfr:"Example Solvents Inc.",part:"MS-215-1G",voc:780,u:"g/L",rev:"2025-06-20",sec:"Section 9"},
+ "No-clean liquid flux (alcohol-based)":{mfr:"Example Solder Supply",part:"NCF-951-QT",voc:765,u:"g/L",rev:"2025-01-08",sec:"Section 9"},
+ "Water-based alkaline degreaser":{mfr:"Example Cleaning Products",part:"AKD-20-5G",voc:28,u:"g/L",rev:"2025-08-30",sec:"Section 9"}
+};
+CHEM.forEach(c=>{if(SDSDATA[c.n])c.sds=SDSDATA[c.n]});
 const byName=Object.fromEntries(CHEM.map(c=>[c.n.toLowerCase(),c]));
 const sel=$("chemSel");
 CATS.forEach(cat=>{const items=CHEM.filter(c=>c.cat===cat);if(!items.length)return;const g=document.createElement("optgroup");g.label=cat;
-  items.forEach(c=>{const o=document.createElement("option");o.value=c.n;o.textContent=c.n;g.appendChild(o)});sel.appendChild(g)});
+  items.forEach(c=>{const o=document.createElement("option");o.value=c.n;o.textContent=c.n+(c.sds?" (With SDS)":"");g.appendChild(o)});sel.appendChild(g)});
 
 /* Sample label photos: generic labels drawn here, no brands. */
 const SAMPLES=[
@@ -299,8 +324,8 @@ function showResult(r,area,src){
   clearForm();
   const cat=CATS.includes(r.category)?r.category:"Chemicals";
   const vs=["Yes","No","Exempt","Unclear"].includes(r.voc)?r.voc:"Unclear";
-  fillForm({status:vs,cat,prod:r.product||"",mfr:r.manufacturer||"",area,voc:r.vocContent??"",units:r.vocUnits||"",
-    notes:(r.confidence==="low"?"Verify SDS (low-confidence ID). ":"")+(vs==="Exempt"?"EPA-exempt compound. ":"")});
+  fillForm({status:vs,cat,prod:r.product||"",mfr:r.manufacturer||"",area,voc:r.vocContent??"",units:r.vocUnits||"",part:r.part||"",sds:r.sdsOnFile||"",
+    notes:(r.confidence==="low"?"Verify SDS (low-confidence ID). ":"")+(vs==="Exempt"?"EPA-exempt compound. ":"")+(r.sdsNote||"")});
   const v=$("verdict");v.className="verdict "+vs.toLowerCase();v.hidden=false;
   const t={Yes:"Contains VOCs",No:"No VOCs",Exempt:"VOC exempt",Unclear:"Unclear, check SDS"}[vs];
   $("vTitle").textContent=t+(r.confidence?" · "+r.confidence+" confidence":"");
@@ -309,20 +334,22 @@ function showResult(r,area,src){
   $("resultCard").hidden=false;
   $("resultCard").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
 }
-const fromChem=c=>({product:c.n,manufacturer:"",voc:c.voc,category:c.cat,vocContent:c.v,vocUnits:c.u,confidence:c.v!=null?"high":"medium",reason:c.reason,sdsTip:c.tip});
+const fromChem=c=>c.sds?({product:c.n,manufacturer:c.sds.mfr,part:c.sds.part,voc:c.voc,category:c.cat,vocContent:c.sds.voc,vocUnits:c.sds.u,sdsOnFile:"Y",confidence:"high",reason:c.reason,sdsTip:"Values below come from the sample SDS, "+c.sds.sec+".",sdsNote:"Sample SDS rev "+c.sds.rev+", "+c.sds.sec+"."}):
+ ({product:c.n,manufacturer:"",voc:c.voc,category:c.cat,vocContent:c.v,vocUnits:c.u,confidence:c.v!=null?"high":"medium",reason:c.reason,sdsTip:c.tip});
+const srcFor=c=>c&&c.sds?"Built-in demo with sample SDS data: shows a finished entry after the AI SDS lookup on a PC (workflow step 3). Illustrative values, not a real manufacturer's sheet.":BUILTIN;
 const BUILTIN="Built-in demo result (no sign-in needed). Typical values for the generic product; always confirm on the actual SDS.";
 
 $("checkBtn").addEventListener("click",async()=>{
   const name=$("pname").value.trim(),area=$("area").value.trim();
   const listed=demoChem||(name?byName[name.toLowerCase()]:null);
   // Chemical picked from the list: always the built-in reference answer.
-  if(demoChem&&!demoSample){setStatus("");showResult(fromChem(demoChem),area,BUILTIN);return}
+  if(demoChem&&!demoSample){setStatus("");showResult(fromChem(demoChem),area,srcFor(demoChem));return}
   if(!name&&!photoBlob){setStatus("Pick a sample photo or a chemical from the list, or add your own photo or name.",true);return}
   if(!sample){
-    if(listed){setStatus("");showResult(fromChem(listed),area,BUILTIN);return}
+    if(listed){setStatus("");showResult(fromChem(listed),area,srcFor(listed));return}
     setStatus("Checking your own photos and products needs a Claude sign-in. Pick a sample photo or a chemical from the list, or use Enter manually.",true);return}
   if(photoBlob&&!canImages&&!name){
-    if(listed){setStatus("");showResult(fromChem(listed),area,BUILTIN);return}
+    if(listed){setStatus("");showResult(fromChem(listed),area,srcFor(listed));return}
     setStatus("Photos can't be read in this view. Type the product name too.",true);return}
   $("checkBtn").disabled=true;$("checkStatus").className="status";$("checkStatus").innerHTML='<span class="spin" aria-hidden="true"></span>Checking with Claude...';
   try{
@@ -332,7 +359,7 @@ $("checkBtn").addEventListener("click",async()=>{
     if(!r.product)r.product=name;
     setStatus("");showResult(r,area,"Live result from Claude"+(opts.images?" (read from the photo)":"")+".");
   }catch(e){
-    if(listed&&e&&e.code==="not_granted"){setStatus("Claude access was declined, so this is the built-in demo result.");showResult(fromChem(listed),area,BUILTIN)}
+    if(listed&&e&&e.code==="not_granted"){setStatus("Claude access was declined, so this is the built-in demo result.");showResult(fromChem(listed),area,srcFor(listed))}
     else setStatus(e&&e.code==="not_granted"?"Claude access was declined. Pick from the list or use Enter manually.":e&&e.code==="rate_limited"?"Too many checks in a row. Wait a minute and try again.":"Couldn't read that one. Try a clearer photo or type the product name.",true);
   }finally{$("checkBtn").disabled=false}
 });

@@ -12,6 +12,15 @@ A phone-first tool for auditing shop work areas for volatile organic compounds (
 ## Demo mode
 As built, the AI check runs inside Claude and needs a Claude sign-in. This public demo includes four sample label photos (generic, drawn in code) and a list of 33 common shop chemicals with built-in reference results, so it works for anyone. Built-in values are typical figures for generic products; always confirm on the actual SDS.
 
+## Demo limits and the real workflow
+A web page can't visit a manufacturer's site or download files from it, and this public demo has no AI connection, so it can't look up a real Safety Data Sheet. In practice:
+1. **On the floor (phone):** photograph each label and log area, quantity, container size and storage.
+2. **Export:** copy the log as CSV.
+3. **At a PC with web-connected AI:** an assistant finds each manufacturer's SDS, reads Section 9 or 15 (VOC content) and Section 3 (ingredients), and fills in manufacturer, part number, VOC content, units and SDS on file.
+4. **Review:** a person checks anything flagged, then submits.
+
+Chemicals marked **(With SDS)** in the demo list show a finished entry after step 3, using sample SDS data (not a real manufacturer's sheet).
+
 ## Design choices
 - Audit categories match the assignment: solvents, chemicals, degreasing, vanishing oils, soldering, SMC/BMC.
 - EPA-exempt compounds (acetone, methyl acetate, PCBTF, perchloroethylene) are called out, with a note that exempt does not mean safe.
