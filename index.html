@@ -1,0 +1,399 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VOC Audit Logger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#eef0f2; --surface:#ffffff; --ink:#1d2329; --muted:#5b6670; --line:#cfd5db;
+  --accent:#f2b705; --accent-ink:#1d2329; --field:#f7f8f9;
+  --yes:#c0392b; --yes-bg:#fbe5e2; --no:#2e7d4f; --no-bg:#e1f2e7; --ex:#2f6690; --ex-bg:#e2edf6; --un:#8a6d00; --un-bg:#fbf1cc;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#14181c; --surface:#1d2329; --ink:#e8ecef; --muted:#9aa5ae; --line:#323b43; --accent:#f2b705; --accent-ink:#14181c; --field:#252c33;
+  --yes:#f08a7e; --yes-bg:#3a201d; --no:#7fd09f; --no-bg:#173024; --ex:#8fbfe6; --ex-bg:#1a2b3a; --un:#e8c84f; --un-bg:#332b10; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;padding:env(safe-area-inset-top,0px) 16px 0}
+.wrap{max-width:560px;margin:0 auto;padding-block:16px 96px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:4px solid var(--accent);padding-bottom:8px}
+h1{font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1}
+h2{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.04em;text-transform:uppercase;margin:0}
+.sub{color:var(--muted);font-size:13px}
+.demo{background:var(--un-bg);border-left:6px solid var(--un);border-radius:4px;padding:10px 12px;font-size:14px}
+.sublab{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.samples{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.samples button{padding:4px;min-height:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:600;line-height:1.2;background:var(--surface)}
+.samples button img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:3px;display:block}
+.samples button[aria-pressed="true"]{border:2px solid var(--accent);background:var(--un-bg)}
+.or{font-size:12px;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:.08em}
+.demo b{display:block;margin-bottom:2px}
+.demo.on{background:var(--no-bg);border-left-color:var(--no)}
+.src{font-size:12px;color:var(--muted);font-style:italic}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:10px;width:100%;min-width:0;text-transform:none;letter-spacing:0;font-weight:400}
+textarea{resize:vertical;min-height:64px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:380px){.row{grid-template-columns:1fr}}
+button{font:inherit;font-weight:600;border-radius:4px;border:1px solid var(--line);background:var(--field);color:var(--ink);padding:11px 14px;cursor:pointer;min-height:44px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-family:var(--f-display);font-size:19px;letter-spacing:.05em;text-transform:uppercase}
+button:disabled{opacity:.55;cursor:default}
+.btns{display:flex;gap:8px;flex-wrap:wrap}.btns>*{flex:1 1 auto}
+.photo{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.photo label.pick{flex:1 1 160px;border:2px dashed var(--line);border-radius:6px;padding:14px;align-items:center;justify-content:center;text-align:center;cursor:pointer;color:var(--ink);font-size:14px;letter-spacing:.04em}
+.photo input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.thumb{width:72px;height:72px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.verdict{display:flex;flex-direction:column;gap:8px;border-left:6px solid var(--muted);padding:10px 12px;border-radius:4px;background:var(--field)}
+.verdict.yes{border-color:var(--yes);background:var(--yes-bg)}.verdict.no{border-color:var(--no);background:var(--no-bg)}
+.verdict.exempt{border-color:var(--ex);background:var(--ex-bg)}.verdict.unclear{border-color:var(--un);background:var(--un-bg)}
+.vtitle{font-family:var(--f-display);font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+.pill{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;align-self:start}
+.pill.yes{color:var(--yes)}.pill.no{color:var(--no)}.pill.exempt{color:var(--ex)}.pill.unclear{color:var(--un)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font-weight:600;padding:6px 0;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:13px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);min-height:36px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip .mono{margin-left:4px}
+.entry{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:12px 0;border-top:1px solid var(--line)}
+.entry:first-child{border-top:0}
+.entry .name{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.entry .meta{grid-column:1/-1;color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.entry .acts{grid-column:1/-1;display:flex;gap:8px;align-items:center}
+.entry .acts button{min-height:36px;padding:6px 12px;font-size:14px}
+.danger{color:var(--yes)}
+.empty{color:var(--muted);font-size:14px;padding:8px 0}
+.status{font-size:14px;color:var(--muted);min-height:1.2em;overflow-wrap:anywhere}
+.err{color:var(--yes)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.bar .in{max-width:560px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.bar .count{flex:1;font-size:14px;color:var(--muted)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style></head><body>
+
+<div class="wrap">
+  <header>
+    <div><h1>VOC Audit Logger</h1><div class="sub">Snap a label, check it, log it</div></div>
+    <div class="sub mono"><span id="today"></span></div>
+  </header>
+
+  <div class="demo" id="modeBox">
+    <b>How this demo works.</b> As built, this tool uses Claude to read a label photo or a typed product name, so the AI check needs you to be signed in to Claude.
+    <span id="modeLine">This public demo runs without Claude, so pick one of the sample label photos or a chemical from the list below for an instant built-in result. Anything you log resets when you reload.</span>
+  </div>
+
+  <section class="card" aria-labelledby="checkH">
+    <h2 id="checkH">1. Check a product</h2>
+    <div class="sublab">Sample label photos</div>
+    <div class="samples" id="samples" role="group" aria-label="Sample label photos"></div>
+    <label for="chemSel">Or pick a common shop chemical
+      <select id="chemSel"><option value="">Choose a chemical...</option></select>
+    </label>
+    <div class="or">or use your own</div>
+    <div class="photo">
+      <label class="pick" for="photo">Take or choose a label photo</label>
+      <input type="file" id="photo" accept="image/*" capture="environment">
+      <img id="thumb" class="thumb" alt="Label photo preview" hidden>
+    </div>
+    <label for="pname">Product name
+      <input id="pname" placeholder="e.g. Isopropyl alcohol 99%" autocomplete="off">
+    </label>
+    <label for="area">Work area
+      <input id="area" placeholder="e.g. Assembly line 2, Maintenance crib" autocomplete="off">
+    </label>
+    <div class="btns">
+      <button class="primary" id="checkBtn">Check VOC</button>
+      <button id="manualBtn">Enter manually</button>
+    </div>
+    <div class="status" id="checkStatus" role="status"></div>
+  </section>
+
+  <section class="card" id="resultCard" aria-labelledby="resH" hidden>
+    <h2 id="resH">2. Review and log</h2>
+    <div class="verdict" id="verdict" hidden>
+      <div class="vtitle" id="vTitle"></div>
+      <div id="vReason"></div>
+      <div class="sub" id="vTip"></div>
+      <div class="src" id="vSrc"></div>
+    </div>
+    <div class="row">
+      <label for="f_status">VOC status
+        <select id="f_status"><option>Yes</option><option>No</option><option>Exempt</option><option>Unclear</option></select>
+      </label>
+      <label for="f_cat">Category<select id="f_cat"></select></label>
+    </div>
+    <label for="f_prod">Product name<input id="f_prod"></label>
+    <div class="row">
+      <label for="f_mfr">Manufacturer<input id="f_mfr"></label>
+      <label for="f_area">Work area<input id="f_area"></label>
+    </div>
+    <div class="row">
+      <label for="f_voc">VOC content<input id="f_voc" inputmode="decimal" placeholder="From SDS"></label>
+      <label for="f_units">Units
+        <select id="f_units"><option></option><option>g/L</option><option>lb/gal</option><option>wt %</option><option>Not listed</option></select>
+      </label>
+    </div>
+    <div class="row">
+      <label for="f_qty">Qty on hand<input id="f_qty" inputmode="decimal" placeholder="e.g. 3"></label>
+      <label for="f_size">Container size<input id="f_size" placeholder="e.g. 1 gal, 12 oz can"></label>
+    </div>
+    <div class="row">
+      <label for="f_sds">SDS on file<select id="f_sds"><option></option><option>Y</option><option>N</option></select></label>
+      <label for="f_storage">Storage<select id="f_storage"><option></option><option>OK</option><option>Needs Action</option></select></label>
+    </div>
+    <details>
+      <summary>More details</summary>
+      <div class="row">
+        <label for="f_part">Part / Item #<input id="f_part"></label>
+        <label for="f_rate">Usage rate<input id="f_rate" inputmode="decimal"></label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label for="f_per">Usage per<select id="f_per"><option></option><option>Day</option><option>Week</option><option>Month</option><option>Year</option></select></label>
+        <label for="f_by">Audited by<input id="f_by"></label>
+      </div>
+      <label for="f_disp" style="margin-top:12px">Disposal method<input id="f_disp"></label>
+    </details>
+    <label for="f_notes">Notes / action needed<textarea id="f_notes"></textarea></label>
+    <div class="btns">
+      <button class="primary" id="saveBtn">Save to log</button>
+      <button id="cancelBtn">Clear</button>
+    </div>
+    <div class="status" id="saveStatus" role="status"></div>
+  </section>
+
+  <section class="card" aria-labelledby="logH">
+    <h2 id="logH">Audit log</h2>
+    <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+    <div id="list"></div>
+  </section>
+</div>
+
+<div class="bar"><div class="in">
+  <div class="count" id="countTxt">0 items logged</div>
+  <button id="exportBtn">Copy CSV</button>
+</div></div>
+
+<script>
+const CATS=["Solvents","Chemicals","Degreasing","Vanishing Oils","Soldering","SMC & BMC","Not in scope"];
+const $=id=>document.getElementById(id);
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+$("today").textContent=today();
+$("f_cat").innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
+
+/* Built-in demo results. Pure-solvent VOC values are the liquid's density (g/L); mixtures say "check SDS". */
+const SDS="Confirm VOC content (g/L or wt %) in Section 9 of the SDS.";
+const CHEM=[
+ ["Acetone","Solvents","Exempt",null,"","Acetone is on the EPA list of exempt compounds (40 CFR 51.100(s)), so it does not count as a VOC even though it evaporates quickly.","Still flammable: confirm storage in a flammables cabinet."],
+ ["Isopropyl alcohol 99%","Solvents","Yes",786,"g/L","Isopropyl alcohol is a VOC and this product is almost pure solvent.",SDS],
+ ["Isopropyl alcohol 70%","Solvents","Yes",null,"","The alcohol portion is a VOC; the water portion is not.","Use the SDS VOC value; it depends on how the supplier reports water content."],
+ ["Denatured alcohol","Solvents","Yes",790,"g/L","Ethanol and the denaturants (often methanol) are VOCs.",SDS],
+ ["Mineral spirits","Solvents","Yes",780,"g/L","Petroleum distillate solvent; nearly all of it is VOC.",SDS],
+ ["Lacquer thinner","Solvents","Yes",null,"","A blend of solvents such as toluene, ketones and alcohols; most are VOCs.","Some low-VOC thinners use acetone or PCBTF; check the SDS composition."],
+ ["Xylene","Solvents","Yes",860,"g/L","Xylene is a VOC and a hazardous air pollutant.",SDS],
+ ["Toluene","Solvents","Yes",867,"g/L","Toluene is a VOC and a hazardous air pollutant.",SDS],
+ ["Methyl ethyl ketone (MEK)","Solvents","Yes",805,"g/L","MEK is a VOC (it is not on the EPA exempt list).",SDS],
+ ["Methyl acetate","Solvents","Exempt",null,"","Methyl acetate is EPA VOC-exempt.","Confirm it is the only solvent listed in Section 3."],
+ ["PCBTF (parachlorobenzotrifluoride)","Solvents","Exempt",null,"","PCBTF is EPA VOC-exempt and is often used in low-VOC thinners and coatings.","Confirm no other solvents are listed in Section 3."],
+ ["Parts washer solvent (petroleum)","Degreasing","Yes",null,"","Petroleum-based parts washer solvents are VOCs.",SDS],
+ ["Brake cleaner aerosol, non-chlorinated","Degreasing","Yes",null,"","Usually acetone plus heptane, toluene or alcohols; the non-exempt solvents count as VOCs.","Check Section 3: the acetone share is exempt, the rest is not."],
+ ["Brake cleaner aerosol, chlorinated","Degreasing","Exempt",null,"","Perchloroethylene, the usual base, is EPA VOC-exempt, but it is a hazardous air pollutant.","Exempt from VOC limits is not the same as safe: confirm ventilation and disposal rules."],
+ ["Citrus degreaser (d-limonene)","Degreasing","Yes",null,"","d-Limonene is a VOC even though it is plant-derived.",SDS],
+ ["Water-based alkaline degreaser","Degreasing","Unclear",null,"","Mostly water, but many contain glycol ethers that count as VOCs.","Check Section 9 for a g/L value; many are under 50 g/L."],
+ ["Vanishing oil (solvent-based)","Vanishing Oils","Yes",null,"","Evaporative stamping lubricants are designed to flash off; the carrier solvent is a VOC.","Check whether the carrier is a hydrocarbon (VOC) or an exempt solvent."],
+ ["Penetrating oil aerosol","Chemicals","Yes",null,"","Aerosol penetrants use petroleum solvents and propellants that are VOCs.",SDS],
+ ["Hydraulic oil","Chemicals","No",null,"","Low-volatility mineral oil; it does not meaningfully evaporate at room temperature.","Confirm vapor pressure in Section 9."],
+ ["Water-soluble cutting fluid","Chemicals","Unclear",null,"","Concentrates are mostly oil and water but may contain glycols or alcohols.","Check Section 9 for a VOC value."],
+ ["Spray paint (aerosol enamel)","Chemicals","Yes",null,"","Aerosol paints carry solvents and propellants that are VOCs.","The label or SDS often states VOC in g/L or a reactivity value."],
+ ["Latex paint (water-based)","Chemicals","Yes",null,"","Water-based but usually still contains a small amount of VOC.","Look for the VOC g/L on the can; many are under 50 g/L."],
+ ["Construction adhesive (solvent-based)","Chemicals","Yes",null,"","Solvent-based adhesives release VOCs as they cure.",SDS],
+ ["Two-part epoxy adhesive","Chemicals","Unclear",null,"","Most two-part epoxies are low VOC, but some hardeners contain solvents.","Check both parts' SDS."],
+ ["Silicone RTV sealant","Chemicals","Unclear",null,"","Curing releases acetic acid or alcohol; content is usually low.",SDS],
+ ["No-clean liquid flux (alcohol-based)","Soldering","Yes",null,"","The carrier is typically isopropyl alcohol, a VOC, and makes up most of the product.",SDS],
+ ["VOC-free no-clean flux (water-based)","Soldering","No",null,"","Water-based flux formulated without VOC solvents.","Confirm the SDS lists water as the carrier."],
+ ["Flux remover aerosol","Soldering","Yes",null,"","Usually alcohol and hydrocarbon solvents; check for exempt blends.",SDS],
+ ["Solder paste","Soldering","Unclear",null,"","The flux vehicle contains small amounts of glycol ethers or alcohols.",SDS],
+ ["Rosin-core solder wire","Soldering","No",null,"","Solid metal with a small rosin flux core; no liquid solvent.","Fumes from soldering are a separate exposure question."],
+ ["SMC / BMC molding compound","SMC & BMC","Yes",null,"","Contains styrene monomer, a VOC and hazardous air pollutant released during molding.","Check styrene content in Section 3."],
+ ["Mold release, solvent-based aerosol","SMC & BMC","Yes",null,"","Solvent carriers and propellants are VOCs.",SDS],
+ ["Mold release, water-based","SMC & BMC","Unclear",null,"","Mostly water, but may contain small amounts of glycols.",SDS],
+].map(([n,cat,voc,v,u,reason,tip])=>({n,cat,voc,v,u,reason,tip}));
+const byName=Object.fromEntries(CHEM.map(c=>[c.n.toLowerCase(),c]));
+const sel=$("chemSel");
+CATS.forEach(cat=>{const items=CHEM.filter(c=>c.cat===cat);if(!items.length)return;const g=document.createElement("optgroup");g.label=cat;
+  items.forEach(c=>{const o=document.createElement("option");o.value=c.n;o.textContent=c.n;g.appendChild(o)});sel.appendChild(g)});
+
+/* Sample label photos: generic labels drawn here, no brands. */
+const SAMPLES=[
+ {chem:"Isopropyl alcohol 99%",title:"ISOPROPYL ALCOHOL",sub:"99% USP",hz:"FLAMMABLE",bottle:"#e9eef3",band:"#1f5f8b",fill:"#cfe3f2"},
+ {chem:"Acetone",title:"ACETONE",sub:"Pure solvent",hz:"FLAMMABLE",bottle:"#f4f1ea",band:"#b3261e",fill:"#f6d6d2"},
+ {chem:"No-clean liquid flux (alcohol-based)",title:"NO-CLEAN FLUX",sub:"Liquid, alcohol based",hz:"FLAMMABLE",bottle:"#efeee8",band:"#2c6e45",fill:"#d3ecdc"},
+ {chem:"Mineral spirits",title:"MINERAL SPIRITS",sub:"Paint thinner",hz:"COMBUSTIBLE",bottle:"#f2ede0",band:"#8a6d00",fill:"#f3e6b5"},
+];
+function labelSVG(s){
+  const lines=s.title.split(" ");
+  const t=lines.map((w,i)=>`<text x="150" y="${222+i*34}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${w.length>9?26:30}" fill="#1d2329">${w}</text>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400"><rect width="300" height="400" fill="#d9dde1"/>
+<rect x="115" y="18" width="70" height="40" rx="6" fill="#2b3036"/><rect x="60" y="58" width="180" height="320" rx="28" fill="${s.bottle}" stroke="#9aa3ab" stroke-width="3"/>
+<rect x="70" y="140" width="160" height="200" rx="6" fill="#fff" stroke="#c4cad0"/><rect x="70" y="140" width="160" height="34" rx="6" fill="${s.band}"/>
+<text x="150" y="163" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="15" fill="#fff" letter-spacing="2">SHOP SUPPLY</text>
+${t}<text x="150" y="${232+lines.length*34}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#3b444c">${s.sub}</text>
+<polygon points="150,${262+lines.length*30} 168,${280+lines.length*30} 150,${298+lines.length*30} 132,${280+lines.length*30}" fill="#fff" stroke="#c0392b" stroke-width="3"/>
+<text x="150" y="330" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="11" fill="#c0392b">${s.hz}</text></svg>`;
+}
+SAMPLES.forEach(s=>{s.url="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(labelSVG(s))});
+$("samples").innerHTML=SAMPLES.map((s,i)=>`<button type="button" data-i="${i}" aria-pressed="false"><img src="${s.url}" alt="Sample label: ${s.title.toLowerCase()}">${s.title.split(" ")[0][0]+s.title.slice(1).toLowerCase()}</button>`).join("");
+function svgToBlob(url){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=600;c.height=800;const x=c.getContext("2d");x.drawImage(img,0,0,600,800);c.toBlob(b=>b?res(b):rej(),"image/png")};img.onerror=rej;img.src=url})}
+
+let sample=null,canImages=false,filter="All",editingId=null,photoBlob=null,demoChem=null,demoSample=null,seq=0;
+let entries=[
+ {id:"d1",status:"Yes",cat:"Solvents",prod:"Isopropyl alcohol 99%",mfr:"Generic supplier",area:"Assembly line 2",voc:"786",units:"g/L",sds:"Y",storage:"OK",qty:"4",size:"1 gal",by:"Auditor",notes:"",date:today(),createdAt:3},
+ {id:"d2",status:"Exempt",cat:"Degreasing",prod:"Acetone",mfr:"Generic supplier",area:"Maintenance crib",voc:"",units:"",sds:"Y",storage:"Needs Action",qty:"2",size:"1 gal",by:"Auditor",notes:"EPA-exempt compound. Cap left open on shelf.",date:today(),createdAt:2},
+ {id:"d3",status:"Unclear",cat:"Soldering",prod:"No-clean flux pen",mfr:"",area:"Rework bench",voc:"",units:"Not listed",sds:"N",storage:"OK",qty:"10",size:"10 mL pen",by:"Auditor",notes:"Verify SDS (low-confidence ID). Request SDS from purchasing.",date:today(),createdAt:1}
+];
+
+const F=["status","cat","prod","mfr","area","voc","units","sds","storage","part","size","qty","rate","per","by","disp","notes"];
+function readForm(){const o={};F.forEach(k=>o[k]=$("f_"+k).value.trim());return o}
+function fillForm(o){F.forEach(k=>{if(o[k]!==undefined&&o[k]!==null)$("f_"+k).value=o[k]})}
+function clearForm(){F.forEach(k=>{if(k!=="by")$("f_"+k).value=""});$("f_status").value="Unclear";$("f_cat").value="Chemicals";editingId=null;$("saveBtn").textContent="Save to log";$("verdict").hidden=true}
+function clearPick(){demoSample=null;document.querySelectorAll("#samples button").forEach(b=>b.setAttribute("aria-pressed","false"))}
+function setStatus(t,err){const st=$("checkStatus");st.className=err?"status err":"status";st.textContent=t}
+
+$("samples").addEventListener("click",async e=>{
+  const b=e.target.closest("button[data-i]");if(!b)return;
+  const s=SAMPLES[+b.dataset.i];clearPick();b.setAttribute("aria-pressed","true");demoSample=s;
+  sel.value="";demoChem=byName[s.chem.toLowerCase()];$("pname").value="";
+  $("thumb").src=s.url;$("thumb").hidden=false;$("photo").value="";
+  try{photoBlob=await svgToBlob(s.url)}catch(err){photoBlob=null}
+  setStatus("Sample photo selected. Tap Check VOC.");
+});
+sel.addEventListener("change",()=>{
+  clearPick();demoChem=sel.value?byName[sel.value.toLowerCase()]:null;
+  if(demoChem){$("pname").value=demoChem.n;photoBlob=null;$("thumb").hidden=true;$("photo").value="";setStatus("Tap Check VOC.")}
+});
+$("pname").addEventListener("input",()=>{demoChem=null;if(sel.value)sel.value="";if(demoSample){clearPick();photoBlob=null;$("thumb").hidden=true}});
+$("photo").addEventListener("change",async e=>{
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  clearPick();demoChem=null;sel.value="";
+  try{photoBlob=await shrink(file)}catch(err){photoBlob=file}
+  $("thumb").src=URL.createObjectURL(photoBlob);$("thumb").hidden=false;
+});
+function shrink(file){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const m=1600,s=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);c.toBlob(b=>b?res(b):rej(),"image/jpeg",.85)};img.onerror=rej;img.src=URL.createObjectURL(file)})}
+
+const PROMPT=(name,area)=>`You help a manufacturing quality engineer audit shop work areas for VOCs (volatile organic compounds).
+Identify the product from the label photo (if provided) and/or the name given. Use the US EPA VOC definition (40 CFR 51.100(s)): acetone, methyl acetate, PCBTF (parachlorobenzotrifluoride), tert-butyl acetate, perchloroethylene, and similar listed compounds are EXEMPT. Water-based products can still contain VOCs.
+Audit categories: Solvents; Chemicals (paint, oil, construction adhesive, glue, sealants, aerosols); Degreasing; Vanishing Oils (evaporative stamping lubricants); Soldering (flux, paste, flux remover); SMC & BMC (sheet/bulk molding compound, styrene, mold release). Use "Not in scope" if none fit.
+Product name given: ${name||"(none)"}
+Work area: ${area||"(none)"}
+Reply with ONLY a JSON object, no other text:
+{"product":"name as on label","manufacturer":"or empty","voc":"Yes|No|Exempt|Unclear","category":"one category from the list","vocContent":number or null,"vocUnits":"g/L|lb/gal|wt %|","confidence":"high|medium|low","reason":"one or two plain sentences on why","sdsTip":"one short sentence on what to confirm on the SDS"}
+Give vocContent only if you know the manufacturer's published value for this exact product; otherwise null. If you cannot identify the exact product, judge from the product type and set confidence to low. Do not use em dashes.`;
+
+function showResult(r,area,src){
+  clearForm();
+  const cat=CATS.includes(r.category)?r.category:"Chemicals";
+  const vs=["Yes","No","Exempt","Unclear"].includes(r.voc)?r.voc:"Unclear";
+  fillForm({status:vs,cat,prod:r.product||"",mfr:r.manufacturer||"",area,voc:r.vocContent??"",units:r.vocUnits||"",
+    notes:(r.confidence==="low"?"Verify SDS (low-confidence ID). ":"")+(vs==="Exempt"?"EPA-exempt compound. ":"")});
+  const v=$("verdict");v.className="verdict "+vs.toLowerCase();v.hidden=false;
+  const t={Yes:"Contains VOCs",No:"No VOCs",Exempt:"VOC exempt",Unclear:"Unclear, check SDS"}[vs];
+  $("vTitle").textContent=t+(r.confidence?" · "+r.confidence+" confidence":"");
+  $("vReason").textContent=r.reason||"";$("vTip").textContent=r.sdsTip?("SDS: "+r.sdsTip):"";
+  $("vSrc").textContent=src;
+  $("resultCard").hidden=false;
+  $("resultCard").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
+}
+const fromChem=c=>({product:c.n,manufacturer:"",voc:c.voc,category:c.cat,vocContent:c.v,vocUnits:c.u,confidence:c.v!=null?"high":"medium",reason:c.reason,sdsTip:c.tip});
+const BUILTIN="Built-in demo result (no sign-in needed). Typical values for the generic product; always confirm on the actual SDS.";
+
+$("checkBtn").addEventListener("click",async()=>{
+  const name=$("pname").value.trim(),area=$("area").value.trim();
+  const listed=demoChem||(name?byName[name.toLowerCase()]:null);
+  // Chemical picked from the list: always the built-in reference answer.
+  if(demoChem&&!demoSample){setStatus("");showResult(fromChem(demoChem),area,BUILTIN);return}
+  if(!name&&!photoBlob){setStatus("Pick a sample photo or a chemical from the list, or add your own photo or name.",true);return}
+  if(!sample){
+    if(listed){setStatus("");showResult(fromChem(listed),area,BUILTIN);return}
+    setStatus("Checking your own photos and products needs a Claude sign-in. Pick a sample photo or a chemical from the list, or use Enter manually.",true);return}
+  if(photoBlob&&!canImages&&!name){
+    if(listed){setStatus("");showResult(fromChem(listed),area,BUILTIN);return}
+    setStatus("Photos can't be read in this view. Type the product name too.",true);return}
+  $("checkBtn").disabled=true;$("checkStatus").className="status";$("checkStatus").innerHTML='<span class="spin" aria-hidden="true"></span>Checking with Claude...';
+  try{
+    const opts={modelTier:"default"};
+    if(photoBlob&&canImages)opts.images=[photoBlob];
+    const r=await sample.json(PROMPT(name,area),opts);
+    if(!r.product)r.product=name;
+    setStatus("");showResult(r,area,"Live result from Claude"+(opts.images?" (read from the photo)":"")+".");
+  }catch(e){
+    if(listed&&e&&e.code==="not_granted"){setStatus("Claude access was declined, so this is the built-in demo result.");showResult(fromChem(listed),area,BUILTIN)}
+    else setStatus(e&&e.code==="not_granted"?"Claude access was declined. Pick from the list or use Enter manually.":e&&e.code==="rate_limited"?"Too many checks in a row. Wait a minute and try again.":"Couldn't read that one. Try a clearer photo or type the product name.",true);
+  }finally{$("checkBtn").disabled=false}
+});
+$("manualBtn").addEventListener("click",()=>{clearForm();$("f_prod").value=$("pname").value.trim();$("f_area").value=$("area").value.trim();$("resultCard").hidden=false;$("f_prod").focus()});
+$("cancelBtn").addEventListener("click",()=>{clearForm();$("resultCard").hidden=true});
+
+$("saveBtn").addEventListener("click",()=>{
+  const o=readForm(),st=$("saveStatus");
+  if(!o.prod){st.className="status err";st.textContent="Product name is required.";return}
+  if(editingId){entries=entries.map(x=>x.id===editingId?{...x,...o}:x)}
+  else{entries.unshift({...o,id:"n"+(++seq),date:today(),createdAt:Date.now()})}
+  clearForm();$("resultCard").hidden=true;$("pname").value="";photoBlob=null;$("thumb").hidden=true;$("photo").value="";sel.value="";demoChem=null;clearPick();
+  setStatus("Saved: "+o.prod+". Ready for the next one.");st.textContent="";
+  render();
+});
+
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function render(){
+  const counts={All:entries.length};CATS.forEach(c=>counts[c]=entries.filter(e=>e.cat===c).length);
+  const shown=["All",...CATS].filter(c=>c==="All"||counts[c]>0);
+  if(!shown.includes(filter))filter="All";
+  $("chips").innerHTML=shown.map(c=>`<button class="chip" aria-pressed="${c===filter}" data-c="${esc(c)}">${esc(c)}<span class="mono">${counts[c]}</span></button>`).join("");
+  const list=filter==="All"?entries:entries.filter(e=>e.cat===filter);
+  $("countTxt").textContent=entries.length+(entries.length===1?" item logged":" items logged");
+  if(!list.length){$("list").innerHTML=`<div class="empty">Nothing logged yet. Check a product above, then tap Save to log.</div>`;return}
+  $("list").innerHTML=list.map(e=>{const c=(e.status||"Unclear").toLowerCase();
+    return `<div class="entry"><div class="name">${esc(e.prod)}</div><span class="pill ${c}">${esc(e.status||"Unclear")}</span>
+    <div class="meta">${esc(e.cat)} · ${esc(e.area||"No area")}${e.qty?` · Qty <span class="mono">${esc(e.qty)}</span>${e.size?" x "+esc(e.size):""}`:""}${e.voc?` · <span class="mono">${esc(e.voc)} ${esc(e.units)}</span>`:""}${e.storage==="Needs Action"?' · <span class="danger">Needs action</span>':""}${e.sds==="N"?' · <span class="danger">No SDS</span>':""}</div>
+    <div class="acts"><button data-edit="${esc(e.id)}">Edit</button><button data-del="${esc(e.id)}" class="danger">Delete</button></div></div>`}).join("");
+}
+$("chips").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(b){filter=b.dataset.c;render()}});
+$("list").addEventListener("click",e=>{
+  const ed=e.target.closest("[data-edit]"),dl=e.target.closest("[data-del]");
+  if(ed){const x=entries.find(y=>y.id===ed.dataset.edit);if(!x)return;clearForm();fillForm(x);editingId=x.id;$("saveBtn").textContent="Update entry";$("vSrc").textContent="";$("resultCard").hidden=false;$("resultCard").scrollIntoView()}
+  if(dl){if(dl.dataset.armed!=="1"){dl.dataset.armed="1";dl.textContent="Tap again to delete";setTimeout(()=>{if(dl.isConnected){dl.dataset.armed="";dl.textContent="Delete"}},3000);return}
+    entries=entries.filter(y=>y.id!==dl.dataset.del);render()}
+});
+
+const COLS=[["Category","cat"],["Work Area / Location","area"],["Product Name","prod"],["Manufacturer","mfr"],["Part / Item #","part"],["SDS on File","sds"],["VOC Content","voc"],["VOC Units","units"],["Container Size","size"],["Qty On Hand","qty"],["Usage Rate","rate"],["Usage Per","per"],["Storage Status","storage"],["Disposal Method","disp"],["Notes / Action Needed","notes"],["Audited By","by"],["Audit Date","date"],["VOC Status","status"]];
+function toCSV(){const q=v=>{const s=String(v??"");return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  return [COLS.map(c=>q(c[0])).join(","),...entries.slice().sort((a,b)=>(a.cat||"").localeCompare(b.cat||"")).map(e=>COLS.map(c=>q(e[c[1]])).join(","))].join("\r\n")}
+$("exportBtn").addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText(toCSV());$("countTxt").textContent="CSV copied. Paste it into Excel."}
+  catch(e){$("countTxt").textContent="Copy isn't allowed in this view."}
+});
+
+render();
+/* Light up the live AI check when the page runs inside Claude with a signed-in viewer. */
+(async()=>{
+  let c=null;
+  for(let i=0;i<40&&!(c=window.claude);i++)await new Promise(r=>setTimeout(r,250));
+  if(!c||!c.use)return;
+  try{
+    const s=await c.use("sample");if(!s)return;
+    sample=s;
+    const lim=await s.limits().catch(()=>null);canImages=!!(lim&&lim.images);
+    $("modeBox").classList.add("on");
+    $("modeLine").textContent="You're signed in, so the live AI check is on: sample photos, your own photos and typed names go to Claude. Chemicals picked from the list use the built-in reference answer. Anything you log resets when you reload.";
+  }catch(e){}
+})();
+</script>
+<a href="https://woyakn77-create.github.io/portfolio/" style="position:fixed;top:10px;right:10px;z-index:50;font:600 13px Arial,sans-serif;background:#1f3864;color:#fff;padding:6px 12px;border-radius:999px;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.2)">Portfolio</a>
+<script data-goatcounter="https://nwoyak.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body></html>
